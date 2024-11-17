@@ -1,0 +1,300 @@
+:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADS WATCH</title>
+  
+  <!-- Firebase Libraries -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Custom Styles -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f3f4f6;
+      color: #333;
+    }
+    .container {
+      max-width: 400px;
+      padding: 20px;
+      text-align: center;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #007bff;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    input {
+      background-color: #f3f4f6;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .error {
+      color: red;
+      font-size: 0.9em;
+      margin-top: -8px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    #ad-section {
+      margin-top: 20px;
+      padding: 20px;
+      background-color: #f9fafb;
+      border-radius: 5px;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    #balance {
+      font-size: 1.5em;
+      color: #28a745;
+    }
+
+    /* Responsive Design */
+    @media screen and (max-width: 768px) {
+      .container {
+        width: 90%;
+        padding: 15px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+      input, button {
+        font-size: 14px;
+        padding: 10px;
+      }
+      #balance {
+        font-size: 1.3em;
+      }
+    }
+
+    @media screen and (max-width: 480px) {
+      .container {
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.5em;
+      }
+      input, button {
+        font-size: 12px;
+        padding: 8px;
+      }
+      #balance {
+        font-size: 1.1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ProfitClicker</h1>
+
+    <!-- User Authentication Section -->
+    <div id="auth-section">
+      <input type="email" id="email" placeholder="Enter your email">
+      <div class="error" id="email-error"></div>
+
+      <input type="password" id="password" placeholder="Enter your password">
+      <div class="error" id="password-error"></div>
+
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+
+      <div style="text-align: left; margin-top: 5px;">
+        <a href="#" onclick="resetPassword()" style="color: #007bff; text-decoration: none; font-size: 0.9em;">Forgot Password?</a>
+      </div>
+    </div>
+
+    <!-- Ad Watching Section -->
+    <div id="ad-section" style="display: none;">
+      <h2>Welcome, <span id="user-email"></span></h2>
+      <p>Balance: $<span id="balance">0.00</span></p>
+      <button onclick="watchAd()">Watch Ad</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBXwJitvpaTcuph04nTjjnWa-yvml6KuTU",
+      authDomain: "siradj-sung.firebaseapp.com",
+      projectId: "siradj-sung",
+      storageBucket: "siradj-sung.firebasestorage.app",
+      messagingSenderId: "550747976019",
+      appId: "1:550747976019:web:48c4b9f7e8cec5915ab1a6",
+      measurementId: "G-KF8T62DYJN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Error display utility
+    function displayError(id, message) {
+      document.getElementById(id).textContent = message;
+    }
+
+    // Clear errors
+    function clearErrors() {
+      displayError("email-error", "");
+      displayError("password-error", "");
+    }
+
+    // Register new user
+    function register() {
+      clearErrors();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+
+          // Send email verification
+          user.sendEmailVerification()
+            .then(() => {
+              alert("Registration successful! Please verify your email.");
+            })
+            .catch(() => {
+              displayError("email-error", "Could not send verification email.");
+            });
+
+          // Initialize user data
+          initializeUserData(user);
+        })
+        .catch(() => {
+          displayError("password-error", "Error: Check your inputs.");
+        });
+    }
+
+    // Login user
+    function login() {
+      clearErrors();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+
+          // Check if email is verified
+          if (user.emailVerified) {
+            displayUserData(user);
+          } else {
+            displayError("email-error", "Verify your email first.");
+            auth.signOut();
+          }
+        })
+        .catch(() => {
+          displayError("password-error", "Invalid credentials.");
+        });
+    }
+
+    // Reset password
+    function resetPassword() {
+      clearErrors();
+      const email = document.getElementById("email").value;
+
+      if (!email) {
+        displayError("email-error", "Enter your email to reset password.");
+        return;
+      }
+
+      auth.sendPasswordResetEmail(email)
+        .then(() => {
+          alert("Password reset email sent.");
+        })
+        .catch(() => {
+          displayError("email-error", "Error sending reset email.");
+        });
+    }
+
+    // Initialize user data in Firestore
+    function initializeUserData(user) {
+      db.collection("users").doc(user.uid).set({
+        email: user.email,
+        balance: 0
+      });
+    }
+
+    // Display user data
+    function displayUserData(user) {
+      db.collection("users").doc(user.uid).get().then((doc) => {
+        if (doc.exists) {
+          document.getElementById("user-email").textContent = doc.data().email;
+          document.getElementById("balance").textContent = doc.data().balance.toFixed(2);
+          document.getElementById("ad-section").style.display = "block";
+          document.getElementById("auth-section").style.display = "none";
+        } else {
+          initializeUserData(user);
+        }
+      });
+    }
+
+    // Watch ad and earn balance
+    function watchAd() {
+      const user = auth.currentUser;
+      if (user) {
+        const userRef = db.collection("users").doc(user.uid);
+        userRef.get().then((doc) => {
+          const newBalance = doc.data().balance + 0.01; // Earn $0.01 per ad
+          userRef.update({
+            balance: newBalance
+          });
+          document.getElementById("balance").textContent = newBalance.toFixed(2);
+          alert("You watched an ad and earned $0.01!");
+        });
+      } else {
+        alert("Please log in first.");
+      }
+    }
+
+    // Logout user
+    function logout() {
+      auth.signOut().then(() => {
+        document.getElementById("ad-section").style.display = "none";
+        document.getElementById("auth-section").style.display = "block";
+      }).catch(() => {
+alert("Error logging out. Please try again.");
+      });
+    }
+
+    // Authentication state observer
+    auth.onAuthStateChanged((user) => {
+      if (user && user.emailVerified) {
+        displayUserData(user);
+      } else {
+        document.getElementById("ad-section").style.display = "none";
+        document.getElementById("auth-section").style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>
